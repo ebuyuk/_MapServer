@@ -2,12 +2,12 @@
 <!DOCTYPE html>
 <html>
 <head>
-<link href="https://unpkg.com/leaflet@1.0.0/dist/leaflet.css" rel="stylesheet" type="text/css" />
-<script src="https://unpkg.com/leaflet@1.0.0/dist/leaflet-src.js"></script>
+<link href="./lib/leaflet.css" rel="stylesheet" type="text/css" />
+<script src="./lib/leaflet-src.js"></script>
 
-<script src="https://unpkg.com/sql.js@0.3.2/js/sql.js"></script>
+<script src="./lib/sql.js"></script>
 
-<script src="http://ivansanchez.gitlab.io/Leaflet.TileLayer.MBTiles/Leaflet.TileLayer.MBTiles.js"></script>
+<script src="./lib/Leaflet.TileLayer.MBTiles.js"></script>
 
   <meta charset="utf-8">
   <title>Leaflet.TileLayer.MBTiles demo</title>
@@ -31,7 +31,7 @@
 	//	minZoom: 0,
 	//	maxZoom: 6
 	//}).addTo(map); -->
-	var mb = L.tileLayer.mbTiles('https://1drv.ms/u/s!Ai00V5vOnnW5jnVowpNcbgWz29AJ?e=G29ytb').addTo(map);
+	var mb = L.tileLayer.mbTiles('./assets/countries-raster.mbtiles').addTo(map);
 
 	mb.on('databaseloaded', function(ev) {
 		console.info('MBTiles DB loaded', ev);
