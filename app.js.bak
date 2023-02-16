@@ -1,0 +1,25 @@
+global.window = {document: {createElementNS: () => {return {}} }};
+global.navigator = {};
+global.btoa = () => {};
+
+//const jsPDF = require('./lib/jspdf.node.min.js')
+//const jsPDF = require('jspdf')
+//const fabric = require("fabric").fabric;
+import html2canvas from 'html2canvas';
+import fabric from 'fabric';
+import fs from 'fs';
+
+// Default export is a4 paper, portrait, using milimeters for units
+import { jsPDF } from "jspdf";
+
+// Default export is a4 paper, portrait, using millimeters for units
+const doc = new jsPDF();
+
+
+doc.text('Hello world!', 10, 10)
+doc.save('a4.pdf')
+fs.writeFileSync('./output.pdf', doc.output())
+
+delete global.window;
+delete global.navigator;
+delete global.btoa;

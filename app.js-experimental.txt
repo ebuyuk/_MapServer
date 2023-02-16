@@ -1,0 +1,478 @@
+global.window = {document: {createElementNS: () => {return {}} }};
+global.navigator = {};
+global.btoa = () => {};
+
+//const jsPDF = require('./lib/jspdf.node.min.js')
+//const jsPDF = require('jspdf')
+//const fabric = require("fabric").fabric;
+import fabric from 'fabric';
+import fs from 'fs';
+import convert from 'xml-js';
+import { jsPDF } from "jspdf";
+import puppeteer from "puppeteer";
+
+
+//const window = new JSDOM('<!doctype html><html><body></body></html>').window.document;
+global.window = window;
+global.document = window;
+global.navigator = {
+	userAgent: 'node.js',
+};
+// Default export is a4 paper, portrait, using millimeters for units
+// const doc = new jsPDF();
+
+
+// doc.text('Hello world!', 10, 10)
+// doc.save('a4.pdf')
+// fs.writeFileSync('./output.pdf', doc.output())
+
+var scope = {
+	items               : [],
+	canvasData          : [],
+	formItems           : [],
+	images              : [],
+	nextExists          : false,
+	previousExists      : false,
+	plainDrawingObjects : [],
+	maxId               : 0,
+	canvas              : null,
+	brushSize           : "1",
+	brushColor          : '#000000',
+	isDrawingMode       : true,
+	backgroundImage     : null,
+	previousPageButton  : null,
+	nextPageButton      : null,
+	boardContainer      : null,
+	isHeighlight        : false,
+	//widthConstant       : 210,
+	//heightConstant      : 279.4,
+	widthConstant       : 215.9,
+	heightConstant      : 279.4,
+	baseScale           : 1,
+	windowHeight        : 0,
+	windowWidth         : 0,
+	activeWindow        : null,
+};
+try {
+	let file = 'W:\\edoc\\DEV\\A9C-MTC-2_1000001892\\1000143593.xml'
+	const data = fs.readFileSync(file, "utf8");
+	var result = convert.xml2json(data, {compact: true, spaces: 4});
+	var responseObject = JSON.parse(result).document;
+} catch (err) {
+	console.error(err);
+}
+//var canvasExport = new fabric.fabric.Canvas('exportOnly',{isDrawingMode:false,backgroundColor:'rgba(255, 255, 255, 0.01)',selection:false});
+
+//canvas.renderOnAddRemove=false;
+// fabric.Object.prototype.selectable = false;
+// fabric.Object.prototype.hasBorders  = false;
+// fabric.Object.prototype.hasControls  = false;
+// fabric.Object.prototype.hasRotatingPoint  = false;
+//canvas.skipTargetFind = true;
+//canvasExport.freeDrawingBrush.width = scope.brushSize;
+//canvasExport.freeDrawingBrush.color = scope.brushColor;
+//canvasExport.renderAll();
+//canvasExport.setHeight(scope.windowHeight);
+//canvasExport.setWidth(scope.windowWidth);
+//canvas.setZoom(scope.canvasBaseScale);
+scope.widthConstant = 215.9;
+scope.heightConstant = 279.4;
+var doc = new jsPDF({unit: 'px',format: [Number(responseObject.page[0]._attributes.width),Number(responseObject.page[0]._attributes.height)]});
+
+var wWidth = doc.internal.pageSize.getWidth();
+var wHeight = doc.internal.pageSize.getHeight();
+var widthMultiplier  = Number((Number(wWidth)  / scope.widthConstant).toFixed(3));
+var heightMultiplier = Number((Number(wHeight) / scope.heightConstant).toFixed(3));
+scope.baseScale     = widthMultiplier > heightMultiplier ? heightMultiplier : widthMultiplier;
+
+scope.windowHeight  = scope.heightConstant * scope.baseScale;
+scope.windowWidth   = scope.widthConstant * scope.baseScale;
+
+scope.leftPadding   = parseInt((Number(wWidth) - scope.windowWidth)/2);
+scope.topPadding    = parseInt((Number(wHeight) - scope.windowHeight)/2);
+
+// scope.backgroundImage.style.height = scope.windowHeight+'px';
+// scope.boardContainer.style.height = scope.windowHeight+'px';
+// scope.boardContainer.style.fontSize = scope.windowHeight+'px';
+// scope.backgroundImage.style.width = scope.windowWidth+'px';
+// scope.boardContainer.style.width = scope.windowWidth+'px';
+
+
+// scope.backgroundImage.style.top = scope.topPadding+'px';
+// scope.boardContainer.style.top = scope.topPadding+'px';
+// scope.backgroundImage.style.left = scope.leftPadding+'px';
+// scope.boardContainer.style.left = scope.leftPadding+'px';
+
+var canvasWidthMultiplier  = Number((Number(wWidth)  / 215.9).toFixed(3));
+var canvasHeightMultiplier = Number((Number(wHeight) / 279.4).toFixed(3));
+scope.canvasBaseScale     = canvasWidthMultiplier > canvasHeightMultiplier ? canvasHeightMultiplier : canvasWidthMultiplier;
+
+// var canvasList = $(".canvas-container");
+// canvasList[0].style.top = scope.topPadding+'px';
+// canvasList[0].style.left = scope.leftPadding+'px';
+//scope.canvas.setHeight(scope.windowHeight);
+//scope.canvas.setWidth(scope.windowWidth);
+//scope.canvas.setZoom(scope.canvasBaseScale);
+//scope.canvas.renderAll();
+
+for (var i = 0; i<responseObject.image.length; i++) {
+	if (i != 0 && (i+1) == Number(responseObject.image[i]._attributes.pageNumber)) {
+		doc.addPage([Number(responseObject.page[i]._attributes.width),Number(responseObject.page[i]._attributes.height)], 'PORTRAIT');
+	}	
+	for (var j = 0; j<responseObject.image.length; j++) {
+		if ((i+1) == Number(responseObject.image[j]._attributes.pageNumber)) {
+			var image = doc.getImageProperties(responseObject.image[j]._text);
+			var height = (doc.internal.pageSize.getHeight() * responseObject.image[j]._attributes.height.replace('%','')) / 100;
+			var width = (doc.internal.pageSize.getWidth() * responseObject.image[j]._attributes.width.replace('%','')) / 100;
+			doc.addImage(responseObject.image[j]._text,'JPEG', 
+			Math.trunc((doc.internal.pageSize.getWidth()*responseObject.image[j]._attributes.positionX.replace('%','')) / 100), 
+			Math.trunc((doc.internal.pageSize.getHeight()*responseObject.image[j]._attributes.positionY.replace('%','')) / 100), 
+			width, 
+			height);
+			
+		}
+	}
+	if (responseObject.item != undefined) {
+		for (var j = 0; j<responseObject.item.length; j++) {
+			if ((i+1) == responseObject.item[j]._attributes.pageNumber) {
+				if (responseObject.item[j]._attributes.type == 'drawing') {
+					 var tempArray = JSON.parse(responseObject.item[j]._text);
+					
+					var object = {isDrawingMode:false,backgroundColor:'rgba(255, 255, 255, 0.01)',selection:false,objects:tempArray}
+					// canvasExport.loadFromJSON(object, canvasExport.renderAll.bind(canvasExport))
+					// const svg = canvasExport.toSVG();
+
+					// const browser = await puppeteer.launch();
+					// const page = await browser.newPage();
+					// await page.setViewport({ width: 2048, height: 1170 });
+					// await page.setContent(svg);
+					
+					// const imageBuffer = await page.screenshot({ omitBackground: true });
+					// await browser.close();
+					// var datay = imageBuffer.toString('base64');
+					// console.log('DATA : '+datay);
+					var canvas = new fabric.fabric.StaticCanvas(null, { width: scope.windowWidth, height: scope.windowHeight });
+					canvas.setZoom(scope.canvasBaseScale)
+					var outfile = fs.createWriteStream('fabrictest'+j+'.png');
+					//var jsonStr='{"objects":[{"type":"image","left":300,"top":200,"width":640,"height":480,"fill":"rgb(0,0,0)","overlayFill":null,"stroke":null,"strokeWidth":1,"strokeDashArray":null,"scaleX":1,"scaleY":1,"angle":0,"flipX":false,"flipY":false,"opacity":1,"selectable":true,"hasControls":true,"hasBorders":true,"hasRotatingPoint":false,"transparentCorners":true,"perPixelTargetFind":false,"src":"http://work.dropdead.org/canvas/image.jpg","filters":[]},{"type":"image","left":400,"top":400,"width":183,"height":44,"fill":"rgb(0,0,0)","overlayFill":null,"stroke":null,"strokeWidth":1,"strokeDashArray":null,"scaleX":1,"scaleY":1,"angle":0,"flipX":false,"flipY":false,"opacity":1,"selectable":true,"hasControls":true,"hasBorders":true,"hasRotatingPoint":false,"transparentCorners":true,"perPixelTargetFind":false,"src":"http://work.dropdead.org/canvas/winkflash.png","filters":[]},{"type":"text","left":100,"top":100,"width":102,"height":104,"fill":"rgb(0,0,0)","overlayFill":null,"stroke":null,"strokeWidth":1,"strokeDashArray":null,"scaleX":1,"scaleY":1,"angle":0,"flipX":false,"flipY":false,"opacity":1,"selectable":true,"hasControls":true,"hasBorders":true,"hasRotatingPoint":false,"transparentCorners":true,"perPixelTargetFind":false,"text":"hello\\n world","fontSize":40,"fontWeight":400,"fontFamily":"Times New Roman","fontStyle":"","lineHeight":1.3,"textDecoration":"","textShadow":"","textAlign":"left","path":null,"strokeStyle":"","backgroundColor":"","textBackgroundColor":"","useNative":true},{"type":"text","left":150,"top":200,"width":139,"height":104,"fill":"rgb(0,0,0)","overlayFill":null,"stroke":null,"strokeWidth":1,"strokeDashArray":null,"scaleX":1,"scaleY":1,"angle":0,"flipX":false,"flipY":false,"opacity":1,"selectable":true,"hasControls":true,"hasBorders":true,"hasRotatingPoint":false,"transparentCorners":true,"perPixelTargetFind":false,"text":"goodbye\\nworld","fontSize":40,"fontWeight":"bold","fontFamily":"Elsie Swash Caps","fontStyle":"","lineHeight":1.3,"textDecoration":"","textShadow":"","textAlign":"left","path":null,"strokeStyle":"","backgroundColor":"","textBackgroundColor":"","useNative":true}],"background":"rgba(0, 0, 0, 0)","backgroundImage":"http://work.dropdead.org/canvas/any.gif","backgroundImageOpacity":1,"backgroundImageStretch":true,"overlayImage":"http://work.dropdead.org/canvas/frame.png","overlayImageLeft":0,"overlayImageTop":0}';
+					//var jsonStr='{"objects":[{"type":"text","left":100,"top":100,"width":102,"height":104,"fill":"rgb(0,0,0)","overlayFill":null,"stroke":null,"strokeWidth":1,"strokeDashArray":null,"scaleX":1,"scaleY":1,"angle":0,"flipX":false,"flipY":false,"opacity":1,"selectable":true,"hasControls":true,"hasBorders":true,"hasRotatingPoint":false,"transparentCorners":true,"perPixelTargetFind":false,"text":"hello\\n world","fontSize":40,"fontWeight":400,"fontFamily":"Times New Roman","fontStyle":"","lineHeight":1.3,"textDecoration":"","textShadow":"","textAlign":"left","path":null,"strokeStyle":"","backgroundColor":"","textBackgroundColor":"","useNative":true},{"type":"text","left":150,"top":200,"width":139,"height":104,"fill":"rgb(0,0,0)","overlayFill":null,"stroke":null,"strokeWidth":1,"strokeDashArray":null,"scaleX":1,"scaleY":1,"angle":0,"flipX":false,"flipY":false,"opacity":1,"selectable":true,"hasControls":true,"hasBorders":true,"hasRotatingPoint":false,"transparentCorners":true,"perPixelTargetFind":false,"text":"goodbye\\nworld","fontSize":40,"fontWeight":"bold","fontFamily":"Elsie Swash Caps","fontStyle":"","lineHeight":1.3,"textDecoration":"","textShadow":"","textAlign":"left","path":null,"strokeStyle":"","backgroundColor":"","textBackgroundColor":"","useNative":true}]}';
+					canvas.loadFromJSON(object);
+					//canvas.renderAll();
+					//output=canvas.toJSON();
+					//console.log(+output);
+					let datay = canvas.toDataURL();
+					// var stream=canvas.createPNGStream();
+					// stream.on('data', function(chunk) {
+					// 		outfile.write(chunk);
+					// });
+					//console.log('data'+datay)
+					// var canvas = new fabric.fabric.StaticCanvas(null, { width: 600, height: 800 });
+
+					// canvas.loadFromJSON(tempArray, function() {
+
+					// 	//first render
+					// 	canvas.renderAll.bind(canvas);
+					  
+					// 	//save the canvas as SVG in server
+					// 	var svgoutput = canvas.toSVG();
+					// 	fs.writeFile("output"+j+".svg", svgoutput, function(err) {
+					// 	  if (err) throw err;
+					// 	});
+					//   });
+
+					// let datay = canvas.toDataURL();
+					// console.log('DAATA : '+datay);
+					doc.addImage(datay,'PNG',0,0,doc.internal.pageSize.getWidth(),doc.internal.pageSize.getHeight());
+				} else if (responseObject.item[j]._attributes.type == 'stamp') {
+					// var tempElement = document.createElement('div');
+					// if (responseObject.item[j]._attributes.style){
+					// 	tempElement.style = responseObject.item[j]._attributes.style;
+					// }   
+					// //var height = Math.trunc((3.779528 * scope.activeWindow.windowObject.item[j].height.replace('mm','')));
+					// //var width  = Math.trunc((3.779528 * scope.activeWindow.windowObject.item[j].width.replace('mm','')));
+					// //tempElement.style.width = width+'px'; 
+					// //tempElement.style.height = height+'px';
+					// var x        = Math.trunc((doc.internal.pageSize.getWidth()*responseObject.item[j]._attributes.positionX.replace('%','')) / 100);
+					// var y        = Math.trunc((doc.internal.pageSize.getHeight()*responseObject.item[j]._attributes.positionY.replace('%','')) / 100);
+					// var height   = Math.trunc((doc.internal.pageSize.getHeight()*responseObject.item[j]._attributes.height.replace('%','')) / 100);
+					// var width    = Math.trunc((doc.internal.pageSize.getWidth()*responseObject.item[j]._attributes.width.replace('%','')) / 100);
+					// var fontSize = Math.trunc((doc.internal.pageSize.getHeight()*tempElement.style.fontSize.replace('%','')) / 100);
+					// tempElement.style.top = y+'px';
+					// tempElement.style.left = x+'px'; 
+					// tempElement.style.height = height+'px'; 
+					// tempElement.style.fontSize = fontSize+'px';
+					// tempElement.style.width = width+'px';
+					// tempElement.style.opacity = 1;
+					// tempElement.id = 'exportTempElement';
+					// //tempElement.style.visibility = 'hidden';
+					// tempElement.innerHTML      = responseObject.item[j]._attributes._text;
+					// var container = document.getElementById('backgroundImg');
+					// container.append(tempElement);
+					
+					// await html2canvas(tempElement,{removeContainer:true,backgroundColor:null,scale: 3}).then(function (canvas) { 
+					// 	$("#exportTempElement").remove();
+					// 	doc.addImage(canvas.toDataURL(),'PNG',x,y,width,height);
+					// });
+					var imageData = await hybritHtml2canvas('div',responseObject.item[j],doc.internal.pageSize.getWidth(),doc.internal.pageSize.getHeight());
+					var x        = Math.trunc((doc.internal.pageSize.getWidth()*responseObject.item[j]._attributes.positionX.replace('%','')) / 100);
+					var y        = Math.trunc((doc.internal.pageSize.getHeight()*responseObject.item[j]._attributes.positionY.replace('%','')) / 100);
+					var height   = Math.trunc((doc.internal.pageSize.getHeight()*responseObject.item[j]._attributes.height.replace('%','')) / 100);
+					var width    = Math.trunc((doc.internal.pageSize.getWidth()*responseObject.item[j]._attributes.width.replace('%','')) / 100);
+					doc.addImage(imageData,'WEBP',x,y,width,height);
+				}
+				else if (responseObject.item[j]._attributes.type == 'textarea') {
+					var x        = Math.trunc((doc.internal.pageSize.getWidth()*responseObject.item[j]._attributes.positionX.replace('%','')) / 100);
+					var y        = Math.trunc((doc.internal.pageSize.getHeight()*responseObject.item[j]._attributes.positionY.replace('%','')) / 100);
+					var height   = Math.trunc((doc.internal.pageSize.getHeight()*responseObject.item[j]._attributes.height.replace('%','')) / 100);
+					var width    = Math.trunc((doc.internal.pageSize.getWidth()*responseObject.item[j]._attributes.width.replace('%','')) / 100);
+					// var canvas = new fabric.fabric.StaticCanvas(null, { width: scope.windowWidth, height: scope.windowHeight });
+					// canvas.setZoom(scope.canvasBaseScale)
+					// var text = new fabric.fabric.Textbox(responseObject.item[j]._text,
+					// {
+					// 	width: width,
+					// 	height : height,
+					// 	styles : [responseObject.item[j]._attributes.style]
+					// });
+					// canvas.add(text);
+
+					// let data = canvas.toDataURL();
+
+					
+					var imageData = await hybritHtml2canvas('textarea',responseObject.item[j],(doc.internal.pageSize.getWidth() * 0.75),(doc.internal.pageSize.getHeight() * 0.75));
+					//var imageData = await hybritHtml2canvasBackup();
+					console.log('imageData : '+imageData);
+
+					doc.addImage(imageData,'WEBP',x,y,width,height);
+					
+					// write file to disk as buffer
+					// convert to base64 string if you want to:
+					//var container = document.getElementById('backgroundImg');
+					//container.append(tempElement);
+					// await html2canvas(tempElement,{removeContainer:true,backgroundColor:null,scale: 2}).then(function (canvas) { 
+					// 	doc.addImage(canvas.toDataURL("image/png"),'WEBP',x,y,width,height);
+					// 	$("#exportTempElement").remove();
+					// });
+					/* 	debugger;
+					var tempElement = document.createElement('textarea');
+					if (scope.activeObject.item[j].style){
+						tempElement.style = scope.activeObject.item[j].style;
+					}    
+					tempElement.innerHTML      = scope.activeObject.item[j].value;
+					var x     = Math.trunc((doc.internal.pageSize.getWidth()*scope.activeObject.item[j].positionX.replace('%','')) / 100);
+					var y     = Math.trunc((doc.internal.pageSize.getHeight()*scope.activeObject.item[j].positionY.replace('%','')) / 100);
+					doc.fromHTML(tempElement,x,y,{    color: 'red'
+				}); */
+			}
+		}
+	}
+}
+}
+doc.save('a4.pdf')
+//await hybritHtml2canvas();
+/* doc.addImage(scope.activeObject.image[i].value,'JPEG',scope.activeObject.image[i].positionX.replace('%',''),
+scope.activeObject.image[i].positionY.replace('%',''),scope.activeObject.image[i].width.replace('%',''),scope.activeObject.image[i].height.replace('%','')); */
+//Math.floor(width * 0.264583)
+/* for (var j = 0; j<scope.activeObject.section.length; j++) {
+	if (Number(scope.activeObject.section[j].pageNumber) == i) {
+		
+	}
+	
+} */
+// }
+//doc.save('Card Export');
+// var blobPDF = doc.output('blob');
+// var xhr = new XMLHttpRequest();
+
+// var files = new Blob([blobPDF],{type:"application/pdf"})
+// files.name = "Edocument_Export.pdf";
+// var formData = new FormData();
+// formData.append("blob", files, files.name);
+// xhr.onreadystatechange = function() {
+// 	if (xhr.readyState == XMLHttpRequest.DONE) {
+// 		var path = Script.Execute("SY_0026","signDocument",xhr.responseText);
+// 		window.open('/Wings/FileDump?localFileUnsecure='+path.result.replaceAll("\\\\", "/"), '_self');
+//     }
+// }
+// xhr.open('POST', SystemFiles.UploadPath+"?getFilePath=true");
+// xhr.send(formData);
+
+
+
+
+async function createHtml2Image(elementType, item, width, height) {
+	const browser = await puppeteer.launch();
+	const page = await browser.newPage();
+	var heightT = Math.trunc((height * item._attributes.height.replace('%','')) / 100);
+	var widthT  = Math.trunc((width * item._attributes.width.replace('%','')) / 100);
+	var pHeight = Number(height).toFixed(0);
+	var pWidth = Number(width).toFixed(0);
+	console.log(pHeight,pWidth);
+	console.log(heightT,widthT);
+
+	// await page.setViewport({
+	// 	height: 593,
+	// 	width: 459
+	// });
+	await page.evaluate(([elementType, item, width, height]) => {
+		var tempElement = document.createElement(elementType);
+		if (item._attributes.style){
+			tempElement.style = item._attributes.style;
+		}   
+		var x      = Math.trunc((width * item._attributes.positionX.replace('%','')) / 100);
+		var y      = Math.trunc((height * item._attributes.positionY.replace('%','')) / 100);
+		var heightT = Math.trunc((height * item._attributes.height.replace('%','')) / 100);
+		var widthT  = Math.trunc((width * item._attributes.width.replace('%','')) / 100);
+		var fontSize = Math.trunc(height * (1.5 / 100));
+		//tempElement.style.width = width+'px'; 
+		//tempElement.style.height = height+'px';
+		tempElement.style.opacity = 1;
+		tempElement.style.top = y + 'px';
+		tempElement.style.left = x + 'px';
+		tempElement.style.height = heightT+'px';
+		tempElement.style.fontSize = '60%';
+		tempElement.style.width = widthT+'px';
+		tempElement.style.borderWidth = 0;
+		tempElement.style.resize = 'none';
+		tempElement.id = 'exportTempElement';
+		tempElement.style.backgroundColor='transparent';
+		tempElement.innerHTML = item._text;
+		document.body.style.height = heightT+'px';
+		document.body.style.width = widthT+'px';
+		document.body.appendChild(tempElement);
+	},[elementType, item, width, height]);
+	let bodyHTML = await page.evaluate(() =>  document.documentElement.outerHTML);
+	let i = 0;
+	while (fs.existsSync('output'+i+'.html')) {
+		i++;
+	}
+	fs.writeFile('output'+i+'.html', bodyHTML, function (err) {
+		if (err) throw err;
+		console.log('Saved!');
+	  });
+
+	const imageBuffer = await page.screenshot({ omitBackground: true,type :'jpeg', quality :100,clip: {
+		x: 0,
+		y: 0,
+		width: widthT,
+		height: heightT,
+	  } });
+	await browser.close();
+	return 'data:image/jpeg;base64,'+imageBuffer.toString('base64');
+}
+
+async function hybritHtml2canvas (elementType, item, width, height) {
+	const browser = await puppeteer.launch();
+	const page = await browser.newPage();
+	await page.setViewport({
+		width: 1380,
+		height: 768
+	});
+	//await page.addScriptTag({url: 'https://html2canvas.hertzen.com/dist/html2canvas.js'});
+	await page.addScriptTag({path : './html2canvas.js'});
+	await page.addScriptTag({url: 'https://code.jquery.com/jquery-3.2.1.min.js'})
+	await page.evaluate(([elementType, item, width, height]) => {
+		// var parentDiv =  document.createElement("div");
+		// parentDiv.style= 'background-repeat: no-repeat; z-index: -1; height: 100%; width: 100%; position: absolute; overflow: visible; border: 0px solid transparent; background-size: contain; background-repeat: round; box-shadow: rgb(0, 0, 0) 0px 0px 10px; border-radius: 3px; margin: 10px;';
+		// document.body.appendChild(parentDiv);
+
+		var tempElement = document.createElement(elementType);
+		if (item._attributes.style){
+			tempElement.style = item._attributes.style;
+		}   
+		var x      = Math.trunc((width * item._attributes.positionX.replace('%','')) / 100);
+		var y      = Math.trunc((height * item._attributes.positionY.replace('%','')) / 100);
+		var heightT = Math.trunc((height * item._attributes.height.replace('%','')) / 100);
+		var widthT  = Math.trunc((width * item._attributes.width.replace('%','')) / 100);
+		var fontSize = Math.trunc(height * (1.5 / 100));
+		//tempElement.style.width = width+'px'; 
+		//tempElement.style.height = height+'px';
+		if (elementType == 'textarea'){
+			tempElement.style.borderWidth = 0;
+			widthT += 25;
+		}
+		tempElement.style.opacity = 1;
+		tempElement.style.top = y + 'px';
+		tempElement.style.left = x + 'px';
+		tempElement.style.height = heightT+'px';
+		tempElement.style.fontSize = '60%';
+		tempElement.style.fontFamily = 'monospace';
+
+		tempElement.style.width = widthT+'px';
+		tempElement.style.resize = 'none';
+		tempElement.id = 'exportTempElement';
+		tempElement.name = 'exportTempElement';
+		tempElement.style.backgroundColor='transparent';
+		tempElement.innerHTML = item._text;
+		document.body.style.height = heightT+'px';
+		document.body.style.width = widthT+'px';
+		document.body.appendChild(tempElement);
+		//parentDiv.append(tempElement);
+	},[elementType, item, width, height]);
+
+	const screenshot = await page.evaluate(async () => {
+        const canvasElement = await window['@nidi/html2canvas']($("#exportTempElement")[0], {removeContainer:true,backgroundColor:null,scale: 2});
+		//const canvasElement = await window['@nidi/html2canvas']($("#exportTempElement")[0], {removeContainer:true,backgroundColor:null,scale: 2});
+        // let image = Canvas2Image.convertToImage(
+        //     canvasElement,
+        //     $(canvasElement).width(),
+        //     $(canvasElement).height(),
+        //     "png"
+        // );
+        return canvasElement.toDataURL("image/png");
+    })
+	// strip off the data: url prefix to get just the base64-encoded bytes
+	//console.log(screenshot)
+	//var data = screenshot.replace(/^data:image\/\w+;base64,/, "");
+	//var buf = new Buffer(data, 'base64');
+	//fs.writeFile(`./screenshots/div-${Date.now()}-.png`, buf);
+	//await page.waitForTimeout(30000);
+	await browser.close();
+	return screenshot;
+}
+
+
+// async function hybritHtml2canvasBackup () {
+// 	const browser = await puppeteer.launch({
+// 		headless: false
+// 	});
+// 	const page = await browser.newPage();
+// 	await page.setViewport({
+// 		width: 1380,
+// 		height: 768
+// 	});
+// 	await page.goto(
+// 		"file://C:/Users/engin.buyukarmutcu/Desktop/export_paperless/template.html"
+// 		, {waitUntil: 'networkidle0'}
+// 	);
+// 	await page.addScriptTag({url: 'https://html2canvas.hertzen.com/dist/html2canvas.js'});
+// 	await page.addScriptTag({url: 'https://cdn.jsdelivr.net/npm/canvas2image@1.0.5/canvas2image.min.js'});
+// 	await page.addScriptTag({url: 'https://code.jquery.com/jquery-3.2.1.min.js'})
+	
+// 	await page.waitForSelector("#exportTempElement");
+// 	// await page.waitForFunction('document.querySelectorAll(".w3-main").length > 0');
+// 	// await page.waitFor(5000)
+// 	const screenshot = await page.evaluate(async () => {
+// 		const canvasElement = await html2canvas($("textarea")[0], {
+// 			// useCORS: true,
+// 		});
+
+// 		let image = Canvas2Image.convertToImage(
+// 			canvasElement,
+// 			130,
+// 			30,
+// 			"png"
+// 		);
+// 		return image.src;
+// 	})
+// 	// strip off the data: url prefix to get just the base64-encoded bytes
+// 	//console.log(screenshot)
+// 	var data = screenshot.replace(/^data:image\/\w+;base64,/, "");
+// 	var buf = new Buffer(data, 'base64');
+// 	fs.writeFile(`./screenshots/div-${Date.now()}-.png`, buf);
+// 	await browser.close();
+// 	return screenshot;
+// }
+
+delete global.window;
+delete global.navigator;
+delete global.btoa;
